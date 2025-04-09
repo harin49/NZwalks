@@ -16,9 +16,9 @@ namespace NZwalks.Controllers
 
 
         [HttpGet]
-        public async Task<IActionResult> Get()
+        public async Task<IActionResult> Get([FromQuery] string? key, [FromQuery] string? value, [FromQuery] string? sortBy, [FromQuery] bool? orderAsc, [FromQuery] int pageNumber, [FromQuery] int pageSize)
         {
-            List<Walks> walks = await _walksRepository.GetAllWalksAsync();
+            List<Walks> walks = await _walksRepository.GetAllWalksAsync( pageNumber, pageSize, key, value, sortBy, orderAsc);
             List<WalksResponseDTO> walksResponse = _mapper.Map<List<WalksResponseDTO>>(walks);
             return Ok(walksResponse);
         }

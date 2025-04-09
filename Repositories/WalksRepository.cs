@@ -46,9 +46,30 @@ namespace NZwalks.Repositories
 
         }
 
-        public async Task<List<Walks>> GetAllWalksAsync()
+        public async Task<List<Walks>> GetAllWalksAsync(int pageNumber, int pageSize, string? key = null, string? value = null, string? sortBy = null, bool? orderAsc = true)
         {
-            return await _dbcontext.Walks.Include("Region").Include("Difficulty").ToListAsync(); ;
+            var walks = _dbcontext.Walks.Include("Region").Include("Difficulty").AsQueryable();
+
+            if(!(string.IsNullOrWhiteSpace(key) && string.IsNullOrWhiteSpace(value)))
+            {
+                walks = walks.Where(x => x.Name.ToLower().Contains(value.ToLower()));
+            }
+
+            if (!(string.IsNullOrWhiteSpace(sortBy)))
+            {
+                if ((bool)orderAsc)
+                {
+                    walks = walks.OrderBy(x => x.Name);
+                }
+                else
+                {
+                    walks = walks.OrderByDescending(x => x.Name);
+                }
+            }
+
+            var skipResults = (pageNumber - 1) * pageSize;
+
+            return await walks.Skip(skipResults).Take(pageSize).ToListAsync(); 
         }
 
         public async Task<Walks?> GetWalksByIdAsync(Guid id)
