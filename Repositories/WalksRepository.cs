@@ -4,18 +4,19 @@ using NZwalks.Models;
 
 namespace NZwalks.Repositories
 {
-    public class WalksRepository(NZwalksDbContext dbcontext ) : IWalksRepository
+    public class WalksRepository(NZwalksDbContext dbcontext) : IWalksRepository
     {
 
         private readonly NZwalksDbContext _dbcontext = dbcontext;
         public async Task<Walks> CreateWalkAsync(Walks walkRequest)
         {
             await _dbcontext.Walks.AddAsync(walkRequest);
-            await  _dbcontext.SaveChangesAsync();
+            await _dbcontext.SaveChangesAsync();
 
             var walkRegion = await _dbcontext.Regions.FirstOrDefaultAsync(x => x.Id == walkRequest.RegionId);
 
-            if (walkRegion != null) { 
+            if (walkRegion != null)
+            {
                 walkRequest.Region = walkRegion;
             }
 
@@ -34,8 +35,9 @@ namespace NZwalks.Repositories
             var walkToBeDeleted = await _dbcontext.Walks.FirstOrDefaultAsync(x => x.Id == id);
 
 
-            if (walkToBeDeleted != null) {
-                 _dbcontext.Walks.Remove(walkToBeDeleted);
+            if (walkToBeDeleted != null)
+            {
+                _dbcontext.Walks.Remove(walkToBeDeleted);
                 await _dbcontext.SaveChangesAsync();
                 return true;
             }
@@ -46,18 +48,37 @@ namespace NZwalks.Repositories
 
         }
 
-        public async Task<List<Walks>> GetAllWalksAsync(int pageNumber, int pageSize, string? key = null, string? value = null, string? sortBy = null, bool? orderAsc = true)
+        public async Task<List<Walks>> GetAllWalksAsync(WalksFilters filters)
         {
             var walks = _dbcontext.Walks.Include("Region").Include("Difficulty").AsQueryable();
 
-            if(!(string.IsNullOrWhiteSpace(key) && string.IsNullOrWhiteSpace(value)))
+            if (filters.D_id.HasValue)
             {
-                walks = walks.Where(x => x.Name.ToLower().Contains(value.ToLower()));
+                walks = walks.Where(x => x.DifficultyId == filters.D_id);
             }
 
-            if (!(string.IsNullOrWhiteSpace(sortBy)))
+            if (filters.R_id.HasValue)
             {
-                if ((bool)orderAsc)
+                walks = walks.Where(x => x.RegionId == filters.R_id);
+            }
+
+            walks = walks.Where(x => x.LengthInKm >= filters.Min_d && x.LengthInKm <= filters.Max_d);
+
+            if (filters.SortBy == "length")
+            {
+                if (filters.SortAsc.GetValueOrDefault())
+                {
+                    walks = walks.OrderBy(x => x.LengthInKm);
+                }
+                else
+                {
+                    walks = walks.OrderByDescending(x => x.LengthInKm);
+                }
+            }
+
+            if (filters.SortBy == "name")
+            {
+                if (filters.SortAsc.GetValueOrDefault())
                 {
                     walks = walks.OrderBy(x => x.Name);
                 }
@@ -67,26 +88,27 @@ namespace NZwalks.Repositories
                 }
             }
 
-            var skipResults = (pageNumber - 1) * pageSize;
+            var skipResults = (filters.PageNumber - 1) * filters.PageSize;
 
-            return await walks.Skip(skipResults).Take(pageSize).ToListAsync(); 
+            return await walks.Skip(skipResults).Take(filters.PageSize).ToListAsync();
         }
 
         public async Task<Walks?> GetWalksByIdAsync(Guid id)
         {
 
-            return await _dbcontext.Walks.Include("Region").Include("Difficulty").FirstOrDefaultAsync(x => x.Id == id);
+            return await _dbcontext.Walks.Include(x => x.Region).Include(x => x.Difficulty).FirstOrDefaultAsync(x => x.Id == id);
         }
 
         public async Task<Walks?> UpdateWalkAsync(Guid id, Walks walkRequest)
         {
-           
+
             var walkToBeUpdated = await _dbcontext.Walks.Include("Region").Include("Difficulty").FirstOrDefaultAsync(x => x.Id == id);
 
-            if (walkToBeUpdated != null) { 
-                
+            if (walkToBeUpdated != null)
+            {
+
                 walkToBeUpdated.Name = walkRequest.Name;
-                walkToBeUpdated.Description = walkRequest.Description;  
+                walkToBeUpdated.Description = walkRequest.Description;
                 walkToBeUpdated.DifficultyId = walkRequest.DifficultyId;
                 walkToBeUpdated.RegionId = walkRequest.RegionId;
                 walkToBeUpdated.LengthInKm = walkRequest.LengthInKm;
